@@ -61,18 +61,12 @@ class LotteryClient:
         """비밀번호 만료 알림 페이지에서 '다음에 변경' 버튼을 자동으로 클릭."""
         soup = BeautifulSoup(resp.text, "html5lib")
 
-        # 디버깅: 페이지 내 모든 링크와 폼 출력
-        logger.warning("[ExpryPswdNoti] 페이지 내 <a> 태그 목록:")
-        for tag in soup.find_all("a"):
-            logger.warning(f"  <a> text={tag.get_text(strip=True)!r} href={tag.get('href', '')!r}")
-        logger.warning("[ExpryPswdNoti] 페이지 내 <form> 태그 목록:")
-        for form in soup.find_all("form"):
-            logger.warning(f"  <form> action={form.get('action', '')!r} method={form.get('method', '')!r}")
-            for el in form.find_all(["button", "input", "a", "span"]):
-                logger.warning(f"    el={el.name} type={el.get('type','')} value={el.get('value','')!r} text={el.get_text(strip=True)!r} onclick={el.get('onclick','')!r}")
-        logger.warning("[ExpryPswdNoti] onclick 속성 가진 모든 요소:")
-        for el in soup.find_all(onclick=True):
-            logger.warning(f"  el={el.name} text={el.get_text(strip=True)!r} onclick={el.get('onclick','')!r}")
+        # 디버깅: 관련 HTML 영역 출력
+        main_content = soup.find("div", {"id": "containerBox"}) or soup.find("div", {"id": "contents"}) or soup.body
+        if main_content:
+            logger.warning(f"[ExpryPswdNoti] 본문 HTML:\n{main_content}")
+        else:
+            logger.warning(f"[ExpryPswdNoti] 전체 HTML(앞 3000자):\n{resp.text[:3000]}")
 
         skip_keywords = ["다음에", "나중에", "건너뛰기", "skip", "later"]
         for tag in soup.find_all("a"):
