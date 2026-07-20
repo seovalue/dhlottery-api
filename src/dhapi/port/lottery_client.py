@@ -68,8 +68,11 @@ class LotteryClient:
         logger.warning("[ExpryPswdNoti] 페이지 내 <form> 태그 목록:")
         for form in soup.find_all("form"):
             logger.warning(f"  <form> action={form.get('action', '')!r} method={form.get('method', '')!r}")
-            for btn in form.find_all(["button", "input"]):
-                logger.warning(f"    btn tag={btn.name} type={btn.get('type','')} value={btn.get('value','')!r} text={btn.get_text(strip=True)!r}")
+            for el in form.find_all(["button", "input", "a", "span"]):
+                logger.warning(f"    el={el.name} type={el.get('type','')} value={el.get('value','')!r} text={el.get_text(strip=True)!r} onclick={el.get('onclick','')!r}")
+        logger.warning("[ExpryPswdNoti] onclick 속성 가진 모든 요소:")
+        for el in soup.find_all(onclick=True):
+            logger.warning(f"  el={el.name} text={el.get_text(strip=True)!r} onclick={el.get('onclick','')!r}")
 
         skip_keywords = ["다음에", "나중에", "건너뛰기", "skip", "later"]
         for tag in soup.find_all("a"):
