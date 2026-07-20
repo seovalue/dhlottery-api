@@ -61,7 +61,16 @@ class LotteryClient:
         """비밀번호 만료 알림 페이지에서 '다음에 변경' 버튼을 자동으로 클릭."""
         soup = BeautifulSoup(resp.text, "html5lib")
 
-        # '다음에 변경' 또는 '나중에' 텍스트를 포함한 링크 탐색
+        # 디버깅: 페이지 내 모든 링크와 폼 출력
+        logger.warning("[ExpryPswdNoti] 페이지 내 <a> 태그 목록:")
+        for tag in soup.find_all("a"):
+            logger.warning(f"  <a> text={tag.get_text(strip=True)!r} href={tag.get('href', '')!r}")
+        logger.warning("[ExpryPswdNoti] 페이지 내 <form> 태그 목록:")
+        for form in soup.find_all("form"):
+            logger.warning(f"  <form> action={form.get('action', '')!r} method={form.get('method', '')!r}")
+            for btn in form.find_all(["button", "input"]):
+                logger.warning(f"    btn tag={btn.name} type={btn.get('type','')} value={btn.get('value','')!r} text={btn.get_text(strip=True)!r}")
+
         skip_keywords = ["다음에", "나중에", "건너뛰기", "skip", "later"]
         for tag in soup.find_all("a"):
             text = tag.get_text(strip=True)
@@ -71,7 +80,6 @@ class LotteryClient:
                 logger.info(f"'다음에 변경' 링크 발견: {skip_url}")
                 return self._session.get(skip_url, timeout=10, allow_redirects=True)
 
-        # 폼 내 버튼/input 탐색
         for form in soup.find_all("form"):
             for btn in form.find_all(["button", "input"]):
                 text = btn.get_text(strip=True) or btn.get("value", "")
