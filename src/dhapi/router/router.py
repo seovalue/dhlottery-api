@@ -6,9 +6,10 @@ from rich.table import Table
 
 from dhapi.config.logger import set_logger
 from dhapi.domain.deposit import Deposit
+from dhapi.domain.lotto645_smart_picker import Lotto645SmartPicker
 from dhapi.domain.lotto645_ticket import Lotto645Ticket
 from dhapi.port.credentials_provider import CredentialsProvider
-from dhapi.router.dependency_factory import build_lottery_client, build_version_provider, build_lotto645_buy_confirmer
+from dhapi.router.dependency_factory import build_lottery_client, build_lotto645_stats_fetcher, build_lottery_endpoint, build_version_provider, build_lotto645_buy_confirmer
 
 app = typer.Typer(
     help="동행복권 비공식 API\n\n각 명령어에 대한 자세한 도움말은 'dhapi [명령어] -h'를 입력하세요.",
@@ -138,6 +139,47 @@ def buy_lotto645(
         raise typer.Exit()
 
     client.buy_lotto645(tickets)
+
+
+@app.command(help="""
+역대 당첨 통계를 분석해 우리만의 룰로 로또6/45 번호를 추천합니다.
+
+5가지 전략으로 각 1세트씩 추천합니다:
+
+  hot_cold      최근 핫넘버 3 + 역대 콜드넘버 2 + 랜덤 1
+
+  zone_balance  5구간에서 각 1개 + 핫 구간 1개 추가
+
+  contrarian    역대 多인데 최근 少(때가 됐다) 3 + 역대 少인데 최근 多(흐름탑승) 3
+
+  balanced      홀수 3개 + 짝수 3개 (합계 100~175 보장)
+
+  our_formula   역대TOP2 + 최근TOP2 + 역대하위1(반전카드) + 랜덤1
+""")
+def suggest_lotto645(
+    recent: Annotated[int, typer.Option("-r", "--recent", help="최근 N회 기준으로 핫/콜드 분석 (기본값: 50)")] = 50,
+    _debug: Annotated[bool, typer.Option("-d", "--debug", help="debug 로그를 활성화합니다.", callback=logger_callback)] = False,
+):
+    try:
+        fetcher = build_lotto645_stats_fetcher()
+        last_round = fetcher.fetch_last_round()
+        freq_all = fetcher.fetch_no_stats()
+        start_epsd = max(1, last_round - recent + 1)
+        freq_recent = fetcher.fetch_no_stats(start_epsd=str(start_epsd), end_epsd=str(last_round))
+    except Exception as e:
+        raise RuntimeError(f"❗ 통계 데이터를 가져오지 못했습니다: {e}")
+
+    picker = Lotto645SmartPicker(freq_all, freq_recent, last_round)
+    strategies = picker.pick_all()
+
+    endpoint = build_lottery_endpoint()
+    endpoint.print_result_of_suggest_lotto645(
+        strategies=strategies,
+        last_round=last_round,
+        freq_all=freq_all,
+        freq_recent=freq_recent,
+        recent_rounds=recent,
+    )
 
 
 @app.command(help="""

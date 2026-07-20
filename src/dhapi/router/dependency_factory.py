@@ -3,6 +3,7 @@ from dhapi.endpoint.lottery_stdout_printer import LotteryStdoutPrinter
 from dhapi.endpoint.version_stdout_printer import VersionStdoutPrinter
 from dhapi.meta.version_provider import VersionProvider
 from dhapi.port.lottery_client import LotteryClient
+from dhapi.port.lotto645_stats_fetcher import Lotto645StatsFetcher
 from dhapi.purchase.lotto645_buy_confirmer import Lotto645BuyConfirmer
 
 
@@ -17,6 +18,10 @@ def build_lotto645_buy_confirmer():
 
 def build_lottery_endpoint():
     return LotteryStdoutPrinter()
+
+
+def build_lotto645_stats_fetcher():
+    return Lotto645StatsFetcher()
 
 
 def build_version_provider():

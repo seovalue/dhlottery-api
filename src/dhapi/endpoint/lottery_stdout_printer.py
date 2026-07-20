@@ -5,6 +5,8 @@ from typing import Dict, List
 from rich.console import Console
 from rich.table import Table
 
+from dhapi.domain.lotto645_smart_picker import StrategyResult
+
 
 class LotteryStdoutPrinter:
     def print_result_of_assign_virtual_account(self, 전용가상계좌, 결제신청금액):
@@ -131,6 +133,47 @@ class LotteryStdoutPrinter:
                     }
                 )
         return parsed_numbers
+
+    def print_result_of_suggest_lotto645(
+        self,
+        strategies: List[StrategyResult],
+        last_round: int,
+        freq_all: Dict[int, int],
+        freq_recent: Dict[int, int],
+        recent_rounds: int,
+    ):
+        console = Console()
+        console.print(f"\n[bold cyan]✨ 로또6/45 스마트 번호 추천[/bold cyan] [dim](1~{last_round}회 통계 기반)[/dim]\n")
+
+        avg_all = sum(freq_all.values()) / 45
+        console.print("[bold]📊 역대 TOP5 번호[/bold]", end="  ")
+        top5 = sorted(freq_all, key=lambda n: freq_all[n], reverse=True)[:5]
+        console.print(" ".join(f"[green]{n}[/green]({freq_all[n]}회)" for n in top5))
+
+        console.print(f"[bold]🔥 최근 {recent_rounds}회 TOP5 번호[/bold]", end="  ")
+        recent_top5 = sorted(freq_recent, key=lambda n: freq_recent[n], reverse=True)[:5]
+        console.print(" ".join(f"[yellow]{n}[/yellow]({freq_recent[n]}회)" for n in recent_top5))
+
+        console.print(f"[bold]❄️  최근 {recent_rounds}회 BOTTOM5 번호[/bold]", end="  ")
+        recent_bot5 = sorted(freq_recent, key=lambda n: freq_recent[n])[:5]
+        console.print(" ".join(f"[blue]{n}[/blue]({freq_recent[n]}회)" for n in recent_bot5))
+        console.print()
+
+        table = Table("전략", "설명", "추천 번호", "합계", "홀/짝")
+        for s in strategies:
+            nums_str = "  ".join(f"{n:2d}" for n in s.numbers)
+            total = sum(s.numbers)
+            odd_cnt = sum(1 for n in s.numbers if n % 2 == 1)
+            table.add_row(
+                f"[bold]{s.label}[/bold]",
+                f"[dim]{s.description}[/dim]",
+                nums_str,
+                str(total),
+                f"{odd_cnt}홀/{6 - odd_cnt}짝",
+            )
+        console.print(table)
+        console.print()
+        console.print("[dim]💡 위 번호를 구매하려면: dhapi buy-lotto645 '번호1,번호2,...'[/dim]")
 
     def _pad_row(self, row: List[str], target_length: int) -> List[str]:
         if len(row) == target_length:

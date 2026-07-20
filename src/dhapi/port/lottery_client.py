@@ -57,6 +57,39 @@ class LotteryClient:
 
         self._login()
 
+    def _handle_expry_pswd_noti(self, resp):
+        """비밀번호 만료 알림 페이지에서 '다음에 변경' 버튼을 자동으로 클릭."""
+        soup = BeautifulSoup(resp.text, "html5lib")
+
+        # '다음에 변경' 또는 '나중에' 텍스트를 포함한 링크 탐색
+        skip_keywords = ["다음에", "나중에", "건너뛰기", "skip", "later"]
+        for tag in soup.find_all("a"):
+            text = tag.get_text(strip=True)
+            href = tag.get("href", "")
+            if any(kw in text.lower() or kw in href.lower() for kw in skip_keywords):
+                skip_url = href if href.startswith("http") else f"{self._base_url}{href}"
+                logger.info(f"'다음에 변경' 링크 발견: {skip_url}")
+                return self._session.get(skip_url, timeout=10, allow_redirects=True)
+
+        # 폼 내 버튼/input 탐색
+        for form in soup.find_all("form"):
+            for btn in form.find_all(["button", "input"]):
+                text = btn.get_text(strip=True) or btn.get("value", "")
+                if any(kw in text.lower() for kw in skip_keywords):
+                    action = form.get("action", "")
+                    form_url = action if action.startswith("http") else f"{self._base_url}{action}"
+                    method = form.get("method", "get").lower()
+                    data = {i.get("name"): i.get("value", "") for i in form.find_all("input") if i.get("name")}
+                    logger.info(f"'다음에 변경' 폼 발견: {form_url} ({method})")
+                    if method == "post":
+                        return self._session.post(form_url, data=data, timeout=10, allow_redirects=True)
+                    return self._session.get(form_url, params=data, timeout=10, allow_redirects=True)
+
+        raise RuntimeError(
+            "비밀번호 만료 알림 페이지에서 '다음에 변경' 버튼을 찾을 수 없습니다. "
+            "브라우저에서 직접 로그인 후 처리해주세요."
+        )
+
     def _rsa_encrypt(self, plain_text, modulus_hex, exponent_hex):
         n = int(modulus_hex, 16)
         e = int(exponent_hex, 16)
@@ -96,6 +129,10 @@ class LotteryClient:
 
         resp = self._session.post(f"{self._base_url}{self._login_url}", headers=login_headers, data=login_data, timeout=10, allow_redirects=True)
         logger.debug(f"Login response status: {resp.status_code}, URL: {resp.url}")
+
+        if "ExpryPswdNoti" in resp.url:
+            logger.warning("비밀번호 만료 알림 감지 — '다음에 변경' 자동 처리 시도")
+            resp = self._handle_expry_pswd_noti(resp)
 
         if resp.status_code != 200 or "loginSuccess" not in resp.url:
             soup = BeautifulSoup(resp.text, "html5lib")
